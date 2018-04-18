@@ -79,26 +79,8 @@ class Ldap extends Model
         $baseDn      = $settings->ldap_basedn;
         $userDn      = $ldap_username_field.'='.$username.','.$settings->ldap_basedn;
 
-        if ($settings->is_ad =='1') {
-            // Check if they are using the userprincipalname for the username field.
-            // If they are, we can skip building the UPN to authenticate against AD
-            if ($ldap_username_field=='userprincipalname') {
-                $userDn = $username;
-            } else {
-                // In case they haven't added an AD domain
-                    $userDn  = ($settings->ad_domain != '') ?  $username.'@'.$settings->ad_domain : $username.'@'.$settings->email_domain;
-            }
-
-        }
-
-        \Log::debug('Attempting to login using distinguished name:'.$userDn);
-
-
         $filterQuery = $settings->ldap_auth_filter_query . $username;
 
-        if (!$ldapbind = @ldap_bind($connection, $userDn, $password)) {
-            return false;
-        }
 
         if (!$results = ldap_search($connection, $baseDn, $filterQuery)) {
             throw new Exception('Could not search LDAP: ');
@@ -112,8 +94,28 @@ class Ldap extends Model
             return false;
         }
 
-        return $user;
+        if ($settings->is_ad =='1') {
+            // Check if they are using the userprincipalname for the username field.
+            // If they are, we can skip building the UPN to authenticate against AD
+            if ($ldap_username_field=='userprincipalname') {
+                $userDn = $username;
+            } else {
+                // In case they haven't added an AD domain
+                    $userDn  = ($settings->ad_domain != '') ?  $username.'@'.$settings->ad_domain : $username.'@'.$settings->email_domain;
+            }
 
+        } else {
+            Log::debug('Not AD');
+            $userDn = 'cn='.$user["cn"][0].','.$settings->ldap_basedn;
+        }
+
+        Log::debug('Attempting to login using distinguished name:'.$userDn);
+
+        if (!$ldapbind = @ldap_bind($connection, $userDn, $password)) {
+            return false;
+        }
+
+        return $user;
     }
 
 
