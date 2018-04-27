@@ -75,6 +75,7 @@ class Ldap extends Model
     {
         $settings = Setting::getSettings();
         $connection = Ldap::connectToLdap();
+        $ldap_bind = Ldap::bindAdminToLdap($connection);
         $ldap_username_field     = $settings->ldap_username_field;
         $baseDn      = $settings->ldap_basedn;
         $userDn      = $ldap_username_field.'='.$username.','.$settings->ldap_basedn;
