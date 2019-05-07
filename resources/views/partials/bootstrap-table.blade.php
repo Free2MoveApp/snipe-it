@@ -155,10 +155,22 @@
 
                 return '<nobr><a href="{{ url('/') }}/' + destination + '/' + value.id + '" data-tooltip="true" title="'+ status_meta[value.status_meta] + '"> <i class="fa ' + icon_style + ' text-' + text_color + '"></i> ' + value.name + ' ' + text_help + ' </a> </nobr>';
             } else if ((value) && (value.name)) {
-                return '<nobr><a href="{{ url('/') }}/' + destination + '/' + value.id + '"> ' + value.name + '</a></span>';
+
+                // Add some overrides for any funny urls we have
+                var dest = destination;
+                if (destination=='fieldsets') {
+                    var dest = 'fields/fieldsets';
+                }
+
+                return '<nobr><a href="{{ url('/') }}/' + dest + '/' + value.id + '"> ' + value.name + '</a></span>';
             }
         };
     }
+
+    function hardwareAuditFormatter(value, row) {
+        return '<a href="{{ url('/') }}/hardware/audit/' + row.id + '/" class="btn btn-sm bg-yellow" data-tooltip="true" title="Audit this item">{{ trans('general.audit') }}</a>';
+    }
+
 
     // Make the edit/delete buttons
     function genericActionsFormatter(destination) {
@@ -166,10 +178,13 @@
 
             var actions = '<nobr>';
 
+            // Add some overrides for any funny urls we have
             var dest = destination;
+
             if (destination=='groups') {
                 var dest = 'admin/groups';
             }
+
             if (destination=='maintenances') {
                 var dest = 'hardware/maintenances';
             }
@@ -267,7 +282,7 @@
     function licenseSeatInOutFormatter(value, row) {
         // The user is allowed to check the license seat out and it's available
         if ((row.available_actions.checkout == true) && (row.user_can_checkout == true) && ((!row.asset_id) && (!row.assigned_to))) {
-            return '<a href="{{ url('/') }}/licenses/' + row.license_id + '/checkout" class="btn btn-sm bg-maroon" data-tooltip="true" title="Check this item out">{{ trans('general.checkout') }}</a>';
+            return '<a href="{{ url('/') }}/licenses/' + row.license_id + '/checkout/'+row.id+'" class="btn btn-sm bg-maroon" data-tooltip="true" title="Check this item out">{{ trans('general.checkout') }}</a>';
         } else {
             return '<a href="{{ url('/') }}/licenses/' + row.id + '/checkin" class="btn btn-sm bg-purple" data-tooltip="true" title="Check in this license seat.">{{ trans('general.checkin') }}</a>';
         }
@@ -425,7 +440,11 @@
     }
 
     function assetTagLinkFormatter(value, row) {
-        return '<a href="{{ url('/') }}/hardware/' + row.asset.id + '"> ' + row.asset.asset_tag + '</a>';
+        if ((row.asset) && (row.asset.id)) {
+            return '<a href="{{ url('/') }}/hardware/' + row.asset.id + '"> ' + row.asset.asset_tag + '</a>';
+        }
+        return '';
+
     }
 
     function assetNameLinkFormatter(value, row) {

@@ -1,6 +1,7 @@
 <?php
 namespace App\Models;
 
+use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Auth\Passwords\CanResetPassword;
@@ -9,6 +10,7 @@ use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Contracts\Auth\Access\Authorizable as AuthorizableContract;
 use Watson\Validating\ValidatingTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Http\Traits\UniqueUndeletedTrait;
 use Illuminate\Notifications\Notifiable;
@@ -45,6 +47,7 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
         'manager_id',
         'password',
         'phone',
+        'notes',
         'state',
         'username',
         'zip',
@@ -68,6 +71,35 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
         'locale'                  => 'max:10|nullable',
     ];
 
+    use Searchable;
+
+    /**
+     * The attributes that should be included when searching the model.
+     *
+     * @var array
+     */
+    protected $searchableAttributes = [
+        'first_name',
+        'last_name',
+        'email',
+        'username',
+        'notes',
+        'phone',
+        'jobtitle',
+        'employee_num'
+    ];
+
+    /**
+     * The relations and their attributes that should be included when searching the model.
+     * 
+     * @var array
+     */
+    protected $searchableRelations = [
+        'userloc'    => ['name'],
+        'department' => ['name'],
+        'groups'     => ['name'],
+        'manager'    => ['first_name', 'last_name', 'username']
+    ];  
 
     public function hasAccess($section)
     {
@@ -135,11 +167,6 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
         return $this->belongsTo('\App\Models\Department', 'department_id');
     }
 
-    public function isActivated()
-    {
-        return $this->activated ==1;
-    }
-
     public function getFullNameAttribute()
     {
         return $this->first_name . " " . $this->last_name;
@@ -170,7 +197,6 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
     public function assets()
     {
         return $this->morphMany('App\Models\Asset', 'assigned', 'assigned_type', 'assigned_to')->withTrashed();
-        // return $this->hasMany('\App\Models\Asset', 'assigned_to')->withTrashed();
     }
 
     /**
@@ -244,7 +270,7 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
      **/
     public function managedLocations()
     {
-        return $this->hasMany('\App\Models\Location', 'manager_id')->withTrashed();
+        return $this->hasMany('\App\Models\Location', 'manager_id');
     }
 
     /**
@@ -303,30 +329,12 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
 
     public function scopeGetDeleted($query)
     {
-        return $query->withTrashed()->whereNotNull('deleted_at');
+        return $query->withTrashed()->whereNotNull('users.deleted_at');
     }
 
     public function scopeGetNotDeleted($query)
     {
         return $query->whereNull('deleted_at');
-    }
-
-    /**
-     * Override the SentryUser getPersistCode method for
-     * multiple logins at one time
-     **/
-    public function getPersistCode()
-    {
-
-        if (!config('session.multi_login') || (!$this->persist_code)) {
-            $this->persist_code = $this->getRandomString();
-
-            // Our code got hashed
-            $persistCode = $this->persist_code;
-            $this->save();
-            return $persistCode;
-        }
-        return $this->persist_code;
     }
 
     public function scopeMatchEmailOrUsername($query, $user_username, $user_email)
@@ -381,7 +389,11 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
     }
 
     /**
-     * Check whether two-factor authorization is required and the user has activated it
+     * Check whether two-factor authorization is requiredfor this user
+     *
+     * 0 = 2FA disabled
+     * 1 = 2FA optional
+     * 2 = 2FA universally required
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
      * @since [v4.0]
@@ -390,10 +402,45 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
      */
     public function two_factor_active () {
 
-        if (Setting::getSettings()->two_factor_enabled !='0') {
-            if (($this->two_factor_optin =='1') && ($this->two_factor_enrolled)) {
-                return true;
-            }
+        // If the 2FA is optional and the user has opted in
+        if ((Setting::getSettings()->two_factor_enabled =='1') && ($this->two_factor_optin =='1'))
+        {
+            return true;
+        }
+        // If the 2FA is required for everyone so is implicitly active
+        elseif (Setting::getSettings()->two_factor_enabled =='2')
+        {
+            return true;
+        }
+
+        return false;
+
+    }
+
+    /**
+     * Check whether two-factor authorization is required and the user has activated it
+     * and enrolled a device
+     *
+     * 0 = 2FA disabled
+     * 1 = 2FA optional
+     * 2 = 2FA universally required
+     *
+     * @author [A. Gianotto] [<snipe@snipe.net>]
+     * @since [v4.6.14]
+     *
+     * @return bool
+     */
+    public function two_factor_active_and_enrolled () {
+
+        // If the 2FA is optional and the user has opted in and is enrolled
+        if ((Setting::getSettings()->two_factor_enabled =='1') && ($this->two_factor_optin =='1') && ($this->two_factor_enrolled =='1'))
+        {
+            return true;
+        }
+        // If the 2FA is required for everyone and the user has enrolled
+        elseif ((Setting::getSettings()->two_factor_enabled =='2') && ($this->two_factor_enrolled))
+        {
+            return true;
         }
         return false;
 
@@ -405,61 +452,47 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
         return json_decode($this->permissions, true);
     }
 
+    /**
+     * Query builder scope to search user by name with spaces in it.
+     * We don't use the advancedTextSearch() scope because that searches
+     * all of the relations as well, which is more than what we need.
+     *
+     * @param  \Illuminate\Database\Query\Builder $query Query builder instance
+     * @param  array  $terms The search terms
+     * @return \Illuminate\Database\Query\Builder
+     */
+    public function scopeSimpleNameSearch($query,  $search) {
+
+           $query = $query->where('first_name', 'LIKE', '%'.$search.'%')
+               ->orWhere('last_name', 'LIKE', '%'.$search.'%')
+               ->orWhereRaw('CONCAT('.DB::getTablePrefix().'users.first_name," ",'.DB::getTablePrefix().'users.last_name) LIKE ?', ["%$search%", "%$search%"]);
+        return $query;
+    }
+
+
+
+    /**
+     * Run additional, advanced searches.
+     *
+     * @param  Illuminate\Database\Eloquent\Builder $query
+     * @param  array  $term The search terms
+     * @return Illuminate\Database\Eloquent\Builder
+     */
+    public function advancedTextSearch(Builder $query, array $terms) {
+
+        foreach($terms as $term) {
+            $query = $query->orWhereRaw('CONCAT('.DB::getTablePrefix().'users.first_name," ",'.DB::getTablePrefix().'users.last_name) LIKE ?', ["%$term%", "%$term%"]);
+        }
+
+        return $query;
+    }
+
 
     public function scopeByGroup($query, $id) {
         return $query->whereHas('groups', function ($query) use ($id) {
             $query->where('groups.id', '=', $id);
         });
     }
-
-
-    /**
-     * Query builder scope to search on text
-     *
-     * @param  Illuminate\Database\Query\Builder  $query  Query builder instance
-     * @param  text                              $search      Search term
-     *
-     * @return Illuminate\Database\Query\Builder          Modified query builder
-     */
-    public function scopeTextsearch($query, $search)
-    {
-
-        return $query->where(function ($query) use ($search) {
-            $query->where('users.first_name', 'LIKE', "%$search%")
-                ->orWhere('users.last_name', 'LIKE', "%$search%")
-                ->orWhere('users.email', 'LIKE', "%$search%")
-                ->orWhere('users.username', 'LIKE', "%$search%")
-                ->orWhere('users.notes', 'LIKE', "%$search%")
-                ->orWhere('users.phone', 'LIKE', "%$search%")
-                ->orWhere('users.jobtitle', 'LIKE', "%$search%")
-                ->orWhere('users.employee_num', 'LIKE', "%$search%")
-                ->orWhereRaw('CONCAT('.DB::getTablePrefix().'users.first_name," ",'.DB::getTablePrefix().'users.last_name) LIKE ?', ["%$search%", "%$search%"])
-                ->orWhere(function ($query) use ($search) {
-                    $query->whereHas('userloc', function ($query) use ($search) {
-                        $query->where('locations.name', 'LIKE', '%'.$search.'%');
-                    });
-                })
-                ->orWhere(function ($query) use ($search) {
-                    $query->whereHas('department', function ($query) use ($search) {
-                        $query->where('departments.name', 'LIKE', '%'.$search.'%');
-                    });
-                })
-                ->orWhere(function ($query) use ($search) {
-                    $query->whereHas('groups', function ($query) use ($search) {
-                        $query->where('groups.name', 'LIKE', '%'.$search.'%');
-                    });
-                })
-
-                 //Ugly, ugly code because Laravel sucks at self-joins
-                ->orWhere(function ($query) use ($search) {
-                    $query->whereRaw(DB::getTablePrefix()."users.manager_id IN (select id from ".DB::getTablePrefix()."users where first_name LIKE ? OR last_name LIKE ?)", ["%$search%", "%$search%"]);
-                });
-
-
-        });
-
-    }
-
 
     /**
      * Query builder scope for Deleted users
@@ -471,7 +504,7 @@ class User extends SnipeModel implements AuthenticatableContract, CanResetPasswo
 
     public function scopeDeleted($query)
     {
-        return $query->whereNotNull('deleted_at');
+        return $query->whereNotNull('users.deleted_at');
     }
 
 

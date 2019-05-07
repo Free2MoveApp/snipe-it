@@ -1,10 +1,10 @@
 <?php
 return array (
-  'app_version' => 'v4.3.0',
-  'full_app_version' => 'v4.3.0 - build 3586-gec1fa8e90',
-  'build_version' => '3586',
+  'app_version' => 'v4.6.16',
+  'full_app_version' => 'v4.6.16 - build 4018-gce16eae50',
+  'build_version' => '4018',
   'prerelease_version' => '',
-  'hash_version' => 'gec1fa8e90',
-  'full_hash' => 'v4.3.0-4-gec1fa8e90',
-  'branch' => 'master',
+  'hash_version' => 'gce16eae50',
+  'full_hash' => 'v4.6.16-6-gce16eae50',
+  'branch' => 'features/6204_email_audit-alerts',
 );

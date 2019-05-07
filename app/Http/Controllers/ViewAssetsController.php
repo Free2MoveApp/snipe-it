@@ -73,7 +73,7 @@ class ViewAssetsController extends Controller
         $assets = Asset::with('model', 'defaultLoc', 'location', 'assignedTo', 'requests')->Hardware()->RequestableAssets()->get();
         $models = AssetModel::with('category', 'requests', 'assets')->RequestableModels()->get();
 
-        return view('account/requestable-assets', compact('user', 'assets', 'models'));
+        return view('account/requestable-assets', compact('assets', 'models'));
     }
 
 
@@ -181,6 +181,8 @@ class ViewAssetsController extends Controller
         // If it's already requested, cancel the request.
         if ($asset->isRequestedBy(Auth::user())) {
             $asset->cancelRequest();
+            $asset->decrement('requests_counter', 1);
+            
             $logaction->logaction('request canceled');
             $settings->notify(new RequestAssetCancelationNotification($data));
             return redirect()->route('requestable-assets')
@@ -188,8 +190,8 @@ class ViewAssetsController extends Controller
         } else {
 
             $logaction->logaction('requested');
-
             $asset->request();
+            $asset->increment('requests_counter', 1);
             $settings->notify(new RequestAssetNotification($data));
 
 

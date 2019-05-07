@@ -26,6 +26,14 @@ use Illuminate\Http\Request;
  */
 class ReportsController extends Controller
 {
+    /**
+     * Checks for correct permissions
+     */
+    public function __construct() {
+        parent::__construct();
+
+        $this->authorize('reports.view');
+    }
 
     /**
     * Returns a view that displays the accessories report.
@@ -400,6 +408,10 @@ class ReportsController extends Controller
                 $header[] = 'Employee No.';
             }
 
+            if ($request->has('manager')) {
+                $header[] = trans('admin/users/table.manager');
+            }
+
             if ($request->has('department')) {
                 $header[] = trans('general.department');
             }
@@ -568,16 +580,16 @@ class ReportsController extends Controller
                     }
 
                     if ($request->has('location_address')) {
-                        $row[] = ($asset->defaultLoc) ? $asset->defaultLoc->address : '';
-                        $row[] = ($asset->defaultLoc) ? $asset->defaultLoc->address2 : '';
-                        $row[] = ($asset->defaultLoc) ? $asset->defaultLoc->city : '';
-                        $row[] = ($asset->defaultLoc) ? $asset->defaultLoc->state : '';
-                        $row[] = ($asset->defaultLoc) ? $asset->defaultLoc->country : '';
-                        $row[] = ($asset->defaultLoc) ? $asset->defaultLoc->zip : '';
+                        $row[] = ($asset->location) ? $asset->location->address : '';
+                        $row[] = ($asset->location) ? $asset->location->address2 : '';
+                        $row[] = ($asset->location) ? $asset->location->city : '';
+                        $row[] = ($asset->location) ? $asset->location->state : '';
+                        $row[] = ($asset->location) ? $asset->location->country : '';
+                        $row[] = ($asset->location) ? $asset->location->zip : '';
                     }
 
                     if ($request->has('rtd_location')) {
-                        $row[] = ($asset->location) ? $asset->defaultLoc->present()->name() : '';
+                        $row[] = ($asset->defaultLoc) ? $asset->defaultLoc->present()->name() : '';
                     }
 
                     if ($request->has('rtd_location_address')) {
@@ -591,8 +603,8 @@ class ReportsController extends Controller
 
 
                     if ($request->has('assigned_to')) {
-                        $row[] = ($asset->checkedOutToUser() && $asset->assigned) ? e($asset->assigned->getFullNameAttribute()) : ($asset->assigned ? e($asset->assigned->display_name) : '');
-                        $row[] = ($asset->checkedOutToUser() && $asset->assigned) ? 'user' : e($asset->assignedType());
+                        $row[] = ($asset->checkedOutToUser() && $asset->assigned) ? $asset->assigned->getFullNameAttribute() : ($asset->assigned ? $asset->assigned->display_name : '');
+                        $row[] = ($asset->checkedOutToUser() && $asset->assigned) ? 'user' : $asset->assignedType();
                     }
 
                     if ($request->has('username')) {
@@ -608,6 +620,14 @@ class ReportsController extends Controller
                         // Only works if we're checked out to a user, not anything else.
                         if ($asset->checkedOutToUser()) {
                             $row[] = ($asset->assignedto) ? $asset->assignedto->employee_num : '';
+                        } else {
+                            $row[] = ''; // Empty string if unassigned
+                        }
+                    }
+
+                    if ($request->has('manager')) {
+                        if ($asset->checkedOutToUser()) {
+                            $row[] = (($asset->assignedto) && ($asset->assignedto->manager)) ? $asset->assignedto->manager->present()->fullName : '';
                         } else {
                             $row[] = ''; // Empty string if unassigned
                         }

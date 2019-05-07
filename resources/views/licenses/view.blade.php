@@ -44,9 +44,9 @@
 
                 <table
                         data-columns="{{ \App\Presenters\LicensePresenter::dataTableLayoutSeats() }}"
-                        data-cookie-id-table="seatsTable"
-                        data-id-table="seatsTable"
-                        id="seatsTable"
+                        data-cookie-id-table="seatsTable-{{ $license->id }}"
+                        data-id-table="seatsTable-{{ $license->id }}"
+                        id="seatsTable-{{$license->id}}"
                         data-pagination="true"
                         data-search="true"
                         data-side-pagination="server"
@@ -270,10 +270,6 @@
 
         <div class="tab-pane" id="uploads">
           <div class="table-responsive">
-            <div id="upload-toolbar">
-              <a href="#" data-toggle="modal" data-target="#uploadFileModal" class="btn btn-default"><i class="fa fa-paperclip"></i> {{ trans('button.upload') }}</a>
-            </div>
-
             <table
                 data-cookie-id-table="licenseUploadsTable"
                 data-id-table="licenseUploadsTable"
@@ -299,6 +295,7 @@
                 <th class="col-md-4" data-field="file_name" data-visible="true" data-sortable="true" data-switchable="true">{{ trans('general.file_name') }}</th>
                 <th class="col-md-4" data-field="notes" data-visible="true" data-sortable="true" data-switchable="true">{{ trans('general.notes') }}</th>
                 <th class="col-md-2" data-field="created_at" data-visible="true"  data-sortable="true" data-switchable="true">{{ trans('general.created_at') }}</th>
+                <th class="col-md-2" data-searchable="true" data-visible="true">{{ trans('general.image') }}</th>
                 <th class="col-md-2" data-field="download" data-visible="true"  data-sortable="false" data-switchable="true">Download</th>
                 <th class="col-md-2" data-field="delete" data-visible="true"  data-sortable="false" data-switchable="true">Delete</th>
               </tr>
@@ -324,6 +321,11 @@
                       <a href="{{ route('show.licensefile', ['licenseId' => $license->id, 'fileId' => $file->id, 'download' => 'false']) }}" data-toggle="lightbox" data-type="image"><img src="{{ route('show.licensefile', ['licenseId' => $license->id, 'fileId' => $file->id]) }}" class="img-thumbnail" style="max-width: 50px;"></a>
                     @endif
                 @endif
+                </td>
+                <td>
+                  @if ($file->filename)
+                    <a href="{{ route('show.licensefile', [$license->id, $file->id, 'download' => 'true']) }}" class="btn btn-default"><i class="fa fa-download"></i></a>
+                  @endif
                 </td>
                 <td>
                   <a class="btn delete-asset btn-danger btn-sm" href="{{ route('delete/licensefile', [$license->id, $file->id]) }}" data-content="Are you sure you wish to delete this file?" data-title="Delete {{ $file->filename }}?"><i class="fa fa-trash icon-white"></i></a>
@@ -384,41 +386,9 @@
   </div>  <!-- /.col -->
 </div> <!-- /.row -->
 
-
-<!-- Modal -->
-<div class="modal fade" id="uploadFileModal" tabindex="-1" role="dialog" aria-labelledby="uploadFileModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        <h4 class="modal-title" id="uploadFileModalLabel">Upload File</h4>
-      </div>
-      {{ Form::open([
-      'method' => 'POST',
-      'route' => ['upload/license', $license->id],
-      'files' => true, 'class' => 'form-horizontal' ]) }}
-      <input type="hidden" name="_token" value="{{ csrf_token() }}" />
-        <div class="modal-body">
-          <p>{{ trans('general.upload_filetypes_help', ['size' => \App\Helpers\Helper::file_upload_max_size_readable()]) }}</p>
-          <div class="form-group col-md-12">
-            <div class="input-group col-md-12">
-              <input class="col-md-12 form-control" type="text" name="notes" id="notes" placeholder="Notes">
-            </div>
-          </div>
-          <div class="form-group col-md-12">
-            <div class="input-group col-md-12">
-             {{ Form::file('licensefile[]', ['multiple' => 'multiple']) }}
-            </div>
-          </div>
-        </div> <!-- /.modal-body-->
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
-          <button type="submit" class="btn btn-primary btn-sm">{{ trans('button.upload') }}</button>
-        </div>
-      {{ Form::close() }}
-    </div>
-  </div>
-</div>
+@can('update', \App\Models\License::class)
+  @include ('modals.upload-file', ['item_type' => 'license', 'item_id' => $license->id])
+@endcan
 
 @stop
 

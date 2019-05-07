@@ -30,7 +30,7 @@ class CategoriesController extends Controller
             $categories = $categories->TextSearch($request->input('search'));
         }
 
-        $offset = $request->input('offset', 0);
+        $offset = (($categories) && (request('offset') > $categories->count())) ? 0 : request('offset', 0);
         $limit = $request->input('limit', 50);
         $order = $request->input('order') === 'asc' ? 'asc' : 'desc';
         $sort = in_array($request->input('sort'), $allowed_columns) ? $request->input('sort') : 'assets_count';
@@ -92,7 +92,7 @@ class CategoriesController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $this->authorize('edit', Category::class);
+        $this->authorize('update', Category::class);
         $category = Category::findOrFail($id);
         $category->fill($request->all());
 

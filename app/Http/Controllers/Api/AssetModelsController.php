@@ -60,7 +60,7 @@ class AssetModelsController extends Controller
             $assetmodels->TextSearch($request->input('search'));
         }
 
-        $offset = $request->input('offset', 0);
+        $offset = (($assetmodels) && (request('offset') > $assetmodels->count())) ? 0 : request('offset', 0);
         $limit = $request->input('limit', 50);
         $order = $request->input('order') === 'asc' ? 'asc' : 'desc';
         $sort = in_array($request->input('sort'), $allowed_columns) ? $request->input('sort') : 'models.created_at';
@@ -145,7 +145,7 @@ class AssetModelsController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $this->authorize('edit', AssetModel::class);
+        $this->authorize('update', AssetModel::class);
         $assetmodel = AssetModel::findOrFail($id);
         $assetmodel->fill($request->all());
         $assetmodel->fieldset_id = $request->get("custom_fieldset_id");
@@ -179,7 +179,7 @@ class AssetModelsController extends Controller
             try  {
                 unlink(public_path().'/uploads/models/'.$assetmodel->image);
             } catch (\Exception $e) {
-                \Log::error($e);
+                \Log::info($e);
             }
         }
 

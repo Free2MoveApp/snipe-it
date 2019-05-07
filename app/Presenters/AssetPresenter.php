@@ -182,21 +182,21 @@ class AssetPresenter extends Presenter
                 "title" => trans('general.notes'),
 
             ], [
-                "field" => "checkouts_count",
+                "field" => "checkout_counter",
                 "searchable" => false,
                 "sortable" => true,
                 "visible" => false,
                 "title" => trans('general.checkouts_count')
 
             ],[
-                "field" => "checkins_count",
+                "field" => "checkin_counter",
                 "searchable" => false,
                 "sortable" => true,
                 "visible" => false,
                 "title" => trans('general.checkins_count')
 
             ], [
-                "field" => "user_requests_count",
+                "field" => "requests_counter",
                 "searchable" => false,
                 "sortable" => true,
                 "visible" => false,
@@ -391,7 +391,7 @@ class AssetPresenter extends Presenter
     public function eol_date()
     {
 
-        if (( $this->purchase_date ) && ( $this->model )) {
+        if (( $this->purchase_date ) && ( $this->model ) && ($this->model->model->eol) ) {
             $date = date_create($this->purchase_date);
             date_add($date, date_interval_create_from_date_string($this->model->model->eol . ' months'));
             return date_format($date, 'Y-m-d');

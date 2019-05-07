@@ -54,9 +54,7 @@
         }
         @endif
 
-        @if (($snipeSettings) && ($snipeSettings->custom_css!=''))
-            {!! $snipeSettings->show_custom_css() !!}
-        @endif
+
 
     @media (max-width: 400px) {
       .navbar-left {
@@ -68,6 +66,12 @@
       }
     }
     </style>
+
+      @if (($snipeSettings) && ($snipeSettings->custom_css))
+          <style>
+              {!! $snipeSettings->show_custom_css() !!}
+          </style>
+      @endif
 
     <script nonce="{{ csrf_token() }}">
           window.snipeit = {
@@ -224,7 +228,7 @@
                        @can('create', \App\Models\Component::class)
                        <li {!! (Request::is('components/create') ? 'class="active"' : '') !!}>
                            <a href="{{ route('components.create') }}">
-                           <i class="fa fa-hdd-o"></i>
+                           <i class="fa fa-hdd-o fa-fw"></i>
                            {{ trans('general.component') }}
                            </a>
                        </li>
@@ -310,7 +314,7 @@
 
                      <li {!! (Request::is('account/requested') ? ' class="active"' : '') !!}>
                          <a href="{{ route('account.requested') }}">
-                             <i class="fa fa-check fa-disk"></i>
+                             <i class="fa fa-check fa-disk fa-fw"></i>
                              Requested Assets
                          </a></li>
 
@@ -436,14 +440,27 @@
                         </a>
                     </li>
 
+                    @can('audit', \App\Models\Asset::class)
+                        <li{!! (Request::is('hardware/audit/due') ? ' class="active"' : '') !!}>
+                            <a href="{{ route('assets.audit.due') }}">
+                                <i class="fa fa-clock-o text-yellow"></i> {{ trans('general.audit_due') }}
+                            </a>
+                        </li>
+                        <li{!! (Request::is('hardware/audit/overdue') ? ' class="active"' : '') !!}>
+                            <a href="{{ route('assets.audit.overdue') }}">
+                                <i class="fa fa-warning text-red"></i> {{ trans('general.audit_overdue') }}
+                            </a>
+                        </li>
+                    @endcan
+
                   <li class="divider">&nbsp;</li>
                     @can('checkout', \App\Models\Asset::class)
-                    <li{!! (Request::is('hardware/bulkcheckout') ? ' class="active>"' : '') !!}>
+                    <li{!! (Request::is('hardware/bulkcheckout') ? ' class="active"' : '') !!}>
                         <a href="{{ route('hardware/bulkcheckout') }}">
                             {{ trans('general.bulk_checkout') }}
                         </a>
                     </li>
-                    <li{!! (Request::is('hardware/requested') ? ' class="active>"' : '') !!}>
+                    <li{!! (Request::is('hardware/requested') ? ' class="active"' : '') !!}>
                         <a href="{{ route('assets.requested') }}">
                             {{ trans('general.requested') }}</a>
                     </li>
@@ -516,7 +533,7 @@
                   </a>
             </li>
             @endcan
-            @can('create', \App\Models\Asset::class)
+            @can('import')
                 <li{!! (Request::is('import/*') ? ' class="active"' : '') !!}>
                     <a href="{{ route('imports.index') }}">
                         <i class="fa fa-cloud-download"></i>
@@ -534,13 +551,13 @@
                     </a>
 
                     <ul class="treeview-menu">
-                        @can('view', \App\Models\CustomField::class)
+                        @if(Gate::allows('view', App\Models\CustomField::class) || Gate::allows('view', App\Models\CustomFieldset::class))
                             <li {!! (Request::is('fields*') ? ' class="active"' : '') !!}>
                                 <a href="{{ route('fields.index') }}">
                                     {{ trans('admin/custom_fields/general.custom_fields') }}
                                 </a>
                             </li>
-                        @endcan
+                        @endif
 
                         @can('view', \App\Models\Statuslabel::class)
                             <li {!! (Request::is('statuslabels*') ? ' class="active"' : '') !!}>
@@ -741,7 +758,11 @@
       <footer class="main-footer hidden-print">
 
         <div class="pull-right hidden-xs">
-          <b>Version</b> {{ config('version.app_version') }} - build {{ config('version.build_version') }} ({{ config('version.branch') }})
+          @if ($snipeSettings->version_footer!='off')
+              @if (($snipeSettings->version_footer=='on') || (($snipeSettings->version_footer=='admin') && (Auth::user()->isSuperUser()=='1')))
+                <b>Version</b> {{ config('version.app_version') }} - build {{ config('version.build_version') }} ({{ config('version.branch') }})
+              @endif
+          @endif
 
           @if ($snipeSettings->support_footer!='off')
               @if (($snipeSettings->support_footer=='on') || (($snipeSettings->support_footer=='admin') && (Auth::user()->isSuperUser()=='1')))

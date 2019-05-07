@@ -321,12 +321,16 @@ Route::group(['prefix' => 'v1','namespace' => 'Api'], function () {
             'uses' => 'AssetsController@selectlist'
         ]);
 
+        Route::get('audit/{audit}', [
+            'as' => 'api.asset.to-audit',
+            'uses' => 'AssetsController@index'
+        ]);
+
 
         Route::post('audit', [
             'as' => 'api.asset.audit',
             'uses' => 'AssetsController@audit'
         ]);
-
 
         Route::post('{asset_id}/checkout',
             [
@@ -674,16 +678,23 @@ Route::group(['prefix' => 'v1','namespace' => 'Api'], function () {
 
 
 
+
     /*--- Users API ---*/
 
-
-
+    
     Route::group([ 'prefix' => 'users' ], function () {
 
         Route::post('two_factor_reset',
             [
                 'as' => 'api.users.two_factor_reset',
                 'uses' => 'UsersController@postTwoFactorReset'
+            ]
+        );
+
+        Route::get('me',
+            [
+                'as' => 'api.users.me',
+                'uses' => 'UsersController@getCurrentUserInfo'
             ]
         );
 
@@ -705,6 +716,13 @@ Route::group(['prefix' => 'v1','namespace' => 'Api'], function () {
             [
                 'as' => 'api.users.assetlist',
                 'uses' => 'UsersController@assets'
+            ]
+        );
+
+        Route::get('{user}/accessories',
+            [
+                'as' => 'api.users.accessorieslist',
+                'uses' => 'UsersController@accessories'
             ]
         );
 
